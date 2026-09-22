@@ -7,6 +7,19 @@
 
 ---
 
+## 📥 Tải Về Cài Đặt (Downloads / Releases)
+
+Tương tự như các phần mềm mã nguồn mở chuẩn trên GitHub, bạn có thể tải các bản build sẵn tại mục **[Releases](../../releases)**:
+
+| Hệ điều hành | File tải về | Định dạng | Tương thích |
+| :--- | :--- | :--- | :--- |
+| 🍏 **macOS** | **[QuickSnag-macOS-arm64.zip](release/QuickSnag-macOS-arm64.zip)** | `.app` nén `.zip` | Apple Silicon (M1/M2/M3/M4) macOS 12+ |
+| 🪟 **Windows** | **[QuickSnag-Windows-x64.zip](../../releases)** | Portable `.exe` nén `.zip` | Windows 10, Windows 11 (64-bit) |
+
+*(Trên macOS, sau khi tải về bạn chỉ cần giải nén và mở `QuickSnag.app`. Trên Windows, chỉ cần giải nén và click đúp `QuickSnag.exe`)*
+
+---
+
 ## 🌟 Tính Năng Nổi Bật
 
 1. **Bộ công cụ chú thích chuẩn Snagit / CleanShot X**:
