@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
-    <ApplicationIcon>icon.ico</ApplicationIcon>
     <RootNamespace>QuickSnag</RootNamespace>
     <AssemblyName>QuickSnag</AssemblyName>
     <PublishSingleFile>true</PublishSingleFile>
