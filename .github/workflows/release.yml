@@ -1,0 +1,94 @@
+name: Build and Release QuickSnag
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: Build macOS (Apple Silicon)
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Compile macOS App
+        run: |
+          make clean
+          make build
+          zip -r -y QuickSnag-macOS-arm64.zip QuickSnag.app
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuickSnag-macOS-arm64
+          path: QuickSnag-macOS-arm64.zip
+
+  build-windows:
+    name: Build Windows (x64 Native)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish Windows Standalone Executable
+        run: |
+          dotnet publish windows/QuickSnag.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o win-publish
+          Compress-Archive -Path win-publish/* -DestinationPath QuickSnag-Windows-x64.zip
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuickSnag-Windows-x64
+          path: QuickSnag-Windows-x64.zip
+
+  release:
+    name: Publish GitHub Release
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download macOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: QuickSnag-macOS-arm64
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: QuickSnag-Windows-x64
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: QuickSnag ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            ## QuickSnag ⚡
+            100% Native Screenshot & Quick Annotation tool for macOS & Windows.
+
+            ### 📥 Downloads:
+            - 🍏 **macOS (Apple Silicon M1/M2/M3/M4)**: `QuickSnag-macOS-arm64.zip`
+            - 🪟 **Windows (10/11 64-bit)**: `QuickSnag-Windows-x64.zip`
+
+            ### ✨ Highlights:
+            - **100% Native**: Ultra-lightweight, zero Electron, instant 0ms launch.
+            - **1-Key Quick Flow**: Press `Enter` or `Cmd/Ctrl + C` to copy to clipboard & close popup.
+            - **Tools**: Arrow, Box, Oval, Auto Step Counter (1, 2, 3), Transparent Text, Pixelate Blur.
+          files: |
+            QuickSnag-macOS-arm64.zip
+            QuickSnag-Windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

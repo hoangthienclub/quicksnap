@@ -1,0 +1,8 @@
+build/
+release/
+QuickSnag.app/
+*.DS_Store
+.vscode/
+bin/
+obj/
+*.user

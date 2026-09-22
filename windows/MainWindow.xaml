@@ -1,0 +1,69 @@
+<Window x:Class="QuickSnag.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="QuickSnag - Screen Annotator"
+        Height="800" Width="1200"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="#0F172A"
+        KeyDown="Window_KeyDown">
+
+    <Grid>
+        <!-- Canvas Background and Drawings -->
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <Grid Name="CanvasContainer" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Image Name="BaseImageDisplay" Stretch="None"/>
+                <Canvas Name="DrawingCanvas"
+                        MouseDown="DrawingCanvas_MouseDown"
+                        MouseMove="DrawingCanvas_MouseMove"
+                        MouseUp="DrawingCanvas_MouseUp"
+                        Background="Transparent"/>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- Floating Top Toolbar Island -->
+        <Border HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,15,0,0"
+                Background="#EE1E293B" CornerRadius="10" Padding="12,6"
+                BorderBrush="#40FFFFFF" BorderThickness="1">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="QuickSnag" Foreground="#38BDF8" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                <Rectangle Width="1" Height="20" Fill="#40FFFFFF" Margin="0,0,10,0"/>
+
+                <!-- Tools -->
+                <Button Content="↗ Arrow" Click="Tool_Click" Tag="Arrow" Margin="2" Padding="8,4" Background="#334155" Foreground="White"/>
+                <Button Content="▭ Rect" Click="Tool_Click" Tag="Rect" Margin="2" Padding="8,4" Background="#334155" Foreground="White"/>
+                <Button Content="◯ Oval" Click="Tool_Click" Tag="Circle" Margin="2" Padding="8,4" Background="#334155" Foreground="White"/>
+                <Button Name="StepBtn" Content="① Step" Click="Tool_Click" Tag="Step" Margin="2" Padding="8,4" Background="#334155" Foreground="White"/>
+                <Button Content="T Text" Click="Tool_Click" Tag="Text" Margin="2" Padding="8,4" Background="#334155" Foreground="White"/>
+                <Button Content="▨ Blur" Click="Tool_Click" Tag="Blur" Margin="2" Padding="8,4" Background="#334155" Foreground="White"/>
+                <Button Content="🖍 Highl" Click="Tool_Click" Tag="Highlight" Margin="2" Padding="8,4" Background="#334155" Foreground="White"/>
+
+                <Rectangle Width="1" Height="20" Fill="#40FFFFFF" Margin="8,0,10,0"/>
+
+                <!-- Colors -->
+                <Button Width="18" Height="18" Background="#EF4444" Margin="3" Click="Color_Click" Tag="#EF4444"/>
+                <Button Width="18" Height="18" Background="#F97316" Margin="3" Click="Color_Click" Tag="#F97316"/>
+                <Button Width="18" Height="18" Background="#EAB308" Margin="3" Click="Color_Click" Tag="#EAB308"/>
+                <Button Width="18" Height="18" Background="#22C55E" Margin="3" Click="Color_Click" Tag="#22C55E"/>
+                <Button Width="18" Height="18" Background="#3B82F6" Margin="3" Click="Color_Click" Tag="#3B82F6"/>
+                <Button Width="18" Height="18" Background="#A855F7" Margin="3" Click="Color_Click" Tag="#A855F7"/>
+                <Button Width="18" Height="18" Background="#FFFFFF" Margin="3" Click="Color_Click" Tag="#FFFFFF"/>
+
+                <Rectangle Width="1" Height="20" Fill="#40FFFFFF" Margin="8,0,10,0"/>
+
+                <!-- Actions -->
+                <Button Content="↩ Undo" Click="Undo_Click" Margin="2" Padding="6,4" Background="#334155" Foreground="White"/>
+                <Button Content="💾 Save" Click="Save_Click" Margin="2" Padding="6,4" Background="#334155" Foreground="White"/>
+
+                <!-- Copy to Clipboard (Highlighted) -->
+                <Button Content="📋 Copy (↵ Enter)" Click="Copy_Click" Margin="6,2,4,2" Padding="12,5"
+                        Background="#10B981" Foreground="White" FontWeight="Bold"/>
+
+                <!-- Close -->
+                <Button Content="✕" Click="Close_Click" Margin="2" Padding="8,4" Background="#EF4444" Foreground="White"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
