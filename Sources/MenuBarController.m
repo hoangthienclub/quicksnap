@@ -2,6 +2,7 @@
 
 @interface MenuBarController ()
 @property (nonatomic, strong) NSStatusItem *statusItem;
+@property (nonatomic, strong) NSMenu *contextMenu;
 @end
 
 @implementation MenuBarController
@@ -43,9 +44,26 @@
     icon.template = YES;
     
     self.statusItem.button.image = icon;
-    self.statusItem.button.toolTip = @"QuickSnag - Screen Capture & Annotator";
+    self.statusItem.button.toolTip = @"QuickSnag - Screen Capture & Annotator\nLeft-click: Capture | Right-click: Menu";
+    self.statusItem.button.target = self;
+    self.statusItem.button.action = @selector(onStatusItemClicked:);
+    [self.statusItem.button sendActionOn:NSEventMaskLeftMouseUp | NSEventMaskRightMouseUp];
     
     [self updateMenu];
+}
+
+- (void)onStatusItemClicked:(id)sender {
+    NSEvent *event = [NSApp currentEvent];
+    if (event.type == NSEventTypeRightMouseUp || (event.modifierFlags & NSEventModifierFlagControl)) {
+        // Right click: pop up context menu with Quit option
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        [self.statusItem popUpStatusItemMenu:self.contextMenu];
+#pragma clang diagnostic pop
+    } else {
+        // Left click: instant interactive screenshot capture
+        [self.delegate menuBarDidRequestCapture];
+    }
 }
 
 - (void)updateMenu {
@@ -89,7 +107,7 @@
     quitItem.target = self;
     [menu addItem:quitItem];
     
-    self.statusItem.menu = menu;
+    self.contextMenu = menu;
 }
 
 - (void)onCaptureClicked:(id)sender {

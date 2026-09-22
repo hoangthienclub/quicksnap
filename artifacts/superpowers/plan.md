@@ -1,14 +1,34 @@
-# Mini-Plan: Fix Windows CI Build Failure (Missing icon.ico)
+# Plan: Hide from Menu & Taskbar, Icon Only, Right-Click to Quit
 
-## Goal
-Fix the GitHub Actions CI build error CS7064 caused by `<ApplicationIcon>icon.ico</ApplicationIcon>` in `QuickSnag.csproj` when `icon.ico` does not exist on disk, and trigger a successful release build.
+## Mục Tiêu
+Cấu hình QuickSnag (cả macOS và Windows) thành ứng dụng chạy ngầm (Agent / Tray App):
+1. Không xuất hiện trên Dock/Taskbar.
+2. Không xuất hiện trên thanh Application Menu trên macOS (File, Edit...).
+3. Ở khay hệ thống: Chỉ hiển thị icon.
+   - Chuột trái (Left-click): Chụp màn hình ngay lập tức (Interactive Capture).
+   - Chuột phải (Right-click): Mở menu ngữ cảnh để người dùng chọn "Quit QuickSnag" hoặc các tuỳ chọn nhanh.
 
-## Root Cause
-In `windows/QuickSnag.csproj`, line 9 specifies `<ApplicationIcon>icon.ico</ApplicationIcon>`. During `dotnet publish`, CSC fails with `CS7064: Error opening icon file ... Could not find file '.../windows/icon.ico'`.
+## Các Bước Thực Hiện
 
-## Steps
-1. Edit `windows/QuickSnag.csproj` and `native-snag-win/QuickSnag.csproj`: Remove the `<ApplicationIcon>icon.ico</ApplicationIcon>` line so .NET uses standard default executable icon.
-2. Commit the change with message `fix(windows): remove missing icon.ico reference to resolve CI build`.
-3. Push to `origin main`.
-4. Delete failed remote tag `v1.0.1` or tag `v1.0.2` and push to trigger GitHub Actions release workflow.
-5. Verification: Monitor GitHub Actions run to verify `build-windows` and `build-macos` pass and assets are attached to GitHub Release.
+### Bước 1: macOS Info.plist (`native-snag/Info.plist`)
+- Thêm `<key>LSUIElement</key><true/>` để macOS ẩn hoàn toàn app khỏi Dock và thanh menu chính của hệ thống.
+
+### Bước 2: macOS MenuBarController (`native-snag/Sources/MenuBarController.m`)
+- Tách biệt sự kiện chuột:
+  - Không gán trực tiếp `self.statusItem.menu = menu` (tránh việc click chuột trái bị bật menu).
+  - Lắng nghe sự kiện `NSEventMaskLeftMouseUp | NSEventMaskRightMouseUp`.
+  - Chuột trái -> Gọi `menuBarDidRequestCapture` (chụp ngay lập tức).
+  - Chuột phải (hoặc Control+Click) -> Gọi `popUpStatusItemMenu:` hiển thị menu có "Quit QuickSnag".
+
+### Bước 3: Windows App & MainWindow (`windows/` & `native-snag-win/`)
+- Trong `MainWindow.xaml`: Thêm `ShowInTaskbar="False"`.
+- Trong `App.xaml.cs`: Đảm bảo `_notifyIcon.MouseClick` xử lý:
+  - Chuột trái -> `TriggerCapture()`.
+  - Chuột phải -> Kích hoạt ContextMenuStrip chứa `Exit QuickSnag`.
+
+### Bước 4: Kiểm Tra (Verification) & Build
+- Biên dịch macOS app (`make clean && make build`).
+- Chạy thử và xác nhận:
+  - App không hiện trên Dock.
+  - Click chuột trái vào camera icon: Mở bộ chụp ảnh màn hình.
+  - Click chuột phải vào camera icon: Hiện menu với nút Thoát (Quit).

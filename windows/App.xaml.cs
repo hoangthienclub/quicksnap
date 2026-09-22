@@ -86,6 +86,13 @@ namespace QuickSnag
             menu.Items.Add("Exit QuickSnag", null, (s, e) => Shutdown());
 
             _notifyIcon.ContextMenuStrip = menu;
+            _notifyIcon.MouseClick += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Left)
+                {
+                    TriggerCapture();
+                }
+            };
             _notifyIcon.DoubleClick += (s, e) => TriggerCapture();
         }
 
