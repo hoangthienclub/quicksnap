@@ -41,12 +41,30 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Publish Windows Standalone Executable
+      - name: Publish Windows Standalone Executable (~65MB)
         run: |
-          dotnet publish windows/QuickSnag.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o win-publish
-          Compress-Archive -Path win-publish/* -DestinationPath QuickSnag-Windows-x64.zip
+          dotnet publish windows/QuickSnag.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o win-publish-standalone
+          Compress-Archive -Path win-publish-standalone/* -DestinationPath QuickSnag-Windows-Standalone.zip
+          Copy-Item QuickSnag-Windows-Standalone.zip -Destination QuickSnag-Windows-x64.zip
 
-      - name: Upload Windows Artifact
+      - name: Publish Windows Lightweight Executable (~300KB)
+        run: |
+          dotnet publish windows/QuickSnag.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o win-publish-lightweight
+          Compress-Archive -Path win-publish-lightweight/* -DestinationPath QuickSnag-Windows-Lightweight.zip
+
+      - name: Upload Windows Standalone Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuickSnag-Windows-Standalone
+          path: QuickSnag-Windows-Standalone.zip
+
+      - name: Upload Windows Lightweight Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuickSnag-Windows-Lightweight
+          path: QuickSnag-Windows-Lightweight.zip
+
+      - name: Upload Windows Legacy Artifact
         uses: actions/upload-artifact@v4
         with:
           name: QuickSnag-Windows-x64
@@ -65,7 +83,17 @@ jobs:
         with:
           name: QuickSnag-macOS-arm64
 
-      - name: Download Windows Artifact
+      - name: Download Windows Standalone Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: QuickSnag-Windows-Standalone
+
+      - name: Download Windows Lightweight Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: QuickSnag-Windows-Lightweight
+
+      - name: Download Windows Legacy Artifact
         uses: actions/download-artifact@v4
         with:
           name: QuickSnag-Windows-x64
@@ -80,15 +108,19 @@ jobs:
             100% Native Screenshot & Quick Annotation tool for macOS & Windows.
 
             ### 📥 Downloads:
-            - 🍏 **macOS (Apple Silicon M1/M2/M3/M4)**: `QuickSnag-macOS-arm64.zip`
-            - 🪟 **Windows (10/11 64-bit)**: `QuickSnag-Windows-x64.zip`
+            - 🍏 **macOS (Apple Silicon M1/M2/M3/M4)**: `QuickSnag-macOS-arm64.zip` (~1.1 MB)
+            - 🪟 **Windows Standalone (Portable, No .NET install required)**: `QuickSnag-Windows-Standalone.zip` (~65 MB)
+            - ⚡ **Windows Lightweight (Requires .NET 8 Desktop Runtime)**: `QuickSnag-Windows-Lightweight.zip` (~300 KB)
 
             ### ✨ Highlights:
             - **100% Native**: Ultra-lightweight, zero Electron, instant 0ms launch.
+            - **Select, Move & Resize**: Interactive corner handles to resize/scale any annotation shape, drag to reposition, delete with Backspace, nudge with arrow keys, full Undo/Redo (`Cmd/Ctrl+Z`).
             - **1-Key Quick Flow**: Press `Enter` or `Cmd/Ctrl + C` to copy to clipboard & close popup.
-            - **Tools**: Arrow, Box, Oval, Auto Step Counter (1, 2, 3), Transparent Text, Pixelate Blur.
+            - **Tools**: Select/Resize (`🎯`), Arrow, Box, Oval, Auto Step Counter (1, 2, 3), Transparent Text, Pixelate Blur, Highlighter.
           files: |
             QuickSnag-macOS-arm64.zip
+            QuickSnag-Windows-Standalone.zip
+            QuickSnag-Windows-Lightweight.zip
             QuickSnag-Windows-x64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

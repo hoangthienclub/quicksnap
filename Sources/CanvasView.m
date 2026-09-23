@@ -13,6 +13,12 @@
 @property (nonatomic, assign) BOOL isDraggingSelectedShape;
 @property (nonatomic, assign) NSPoint lastDragLocation;
 
+@property (nonatomic, assign) ShapeResizeHandle activeResizeHandle;
+@property (nonatomic, assign) NSPoint resizeAnchorPoint;
+@property (nonatomic, assign) NSRect resizeOriginalRect;
+@property (nonatomic, strong, nullable) NSArray<NSValue *> *resizeOriginalPoints;
+@property (nonatomic, assign) CGFloat resizeOriginalStrokeWidth;
+
 @end
 
 @implementation CanvasView
@@ -33,6 +39,35 @@
 
 - (BOOL)isFlipped {
     return NO;
+}
+
+- (void)setSelectedShape:(AnnotationShape *)selectedShape {
+    _selectedShape = selectedShape;
+    [self.window invalidateCursorRectsForView:self];
+    [self setNeedsDisplay:YES];
+}
+
+- (void)resetCursorRects {
+    [super resetCursorRects];
+    if (self.selectedShape) {
+        CGFloat hSize = 14.0;
+        if (self.selectedShape.type == ToolTypeArrow) {
+            NSRect r1 = NSMakeRect(self.selectedShape.startPoint.x - hSize/2.0, self.selectedShape.startPoint.y - hSize/2.0, hSize, hSize);
+            NSRect r2 = NSMakeRect(self.selectedShape.endPoint.x - hSize/2.0, self.selectedShape.endPoint.y - hSize/2.0, hSize, hSize);
+            [self addCursorRect:r1 cursor:[NSCursor crosshairCursor]];
+            [self addCursorRect:r2 cursor:[NSCursor crosshairCursor]];
+        } else {
+            NSRect r = NSInsetRect([self.selectedShape boundingRect], -4, -4);
+            NSRect bl = NSMakeRect(NSMinX(r) - hSize/2.0, NSMinY(r) - hSize/2.0, hSize, hSize);
+            NSRect br = NSMakeRect(NSMaxX(r) - hSize/2.0, NSMinY(r) - hSize/2.0, hSize, hSize);
+            NSRect tr = NSMakeRect(NSMaxX(r) - hSize/2.0, NSMaxY(r) - hSize/2.0, hSize, hSize);
+            NSRect tl = NSMakeRect(NSMinX(r) - hSize/2.0, NSMaxY(r) - hSize/2.0, hSize, hSize);
+            [self addCursorRect:bl cursor:[NSCursor crosshairCursor]];
+            [self addCursorRect:br cursor:[NSCursor crosshairCursor]];
+            [self addCursorRect:tr cursor:[NSCursor crosshairCursor]];
+            [self addCursorRect:tl cursor:[NSCursor crosshairCursor]];
+        }
+    }
 }
 
 - (void)loadImage:(NSImage *)image {
@@ -82,6 +117,7 @@
     [self.history pushState:self.shapes];
     [self.shapes removeObject:self.selectedShape];
     self.selectedShape = nil;
+    [self.window invalidateCursorRectsForView:self];
     [self setNeedsDisplay:YES];
     [self.delegate canvasDidChangeShapes];
 }
@@ -90,6 +126,7 @@
     if (!self.selectedShape) return;
     [self.history pushState:self.shapes];
     [self.selectedShape translateByDx:dx dy:dy];
+    [self.window invalidateCursorRectsForView:self];
     [self setNeedsDisplay:YES];
     [self.delegate canvasDidChangeShapes];
 }
@@ -97,6 +134,7 @@
 - (void)clearSelection {
     if (self.selectedShape) {
         self.selectedShape = nil;
+        [self.window invalidateCursorRectsForView:self];
         [self setNeedsDisplay:YES];
     }
 }
@@ -112,33 +150,59 @@
 
 - (void)drawSelectionOverlayForShape:(AnnotationShape *)shape {
     [NSGraphicsContext saveGraphicsState];
-    NSRect r = [shape boundingRect];
-    r = NSInsetRect(r, -4, -4);
 
-    // Dashed cyan bounding box
-    NSBezierPath *border = [NSBezierPath bezierPathWithRoundedRect:r xRadius:4 yRadius:4];
-    CGFloat dash[2] = { 4.0, 3.0 };
-    [border setLineDash:dash count:2 phase:0.0];
-    border.lineWidth = 1.5;
-    [[NSColor colorWithCalibratedRed:0.22 green:0.74 blue:0.97 alpha:0.95] setStroke];
-    [border stroke];
+    if (shape.type == ToolTypeArrow) {
+        // Dashed cyan line between arrow endpoints
+        NSBezierPath *guide = [NSBezierPath bezierPath];
+        [guide moveToPoint:shape.startPoint];
+        [guide lineToPoint:shape.endPoint];
+        CGFloat dash[2] = { 4.0, 3.0 };
+        [guide setLineDash:dash count:2 phase:0.0];
+        guide.lineWidth = 1.2;
+        [[NSColor colorWithCalibratedRed:0.22 green:0.74 blue:0.97 alpha:0.7] setStroke];
+        [guide stroke];
 
-    // Corner handle dots
-    CGFloat handleSize = 6.0;
-    NSPoint corners[4] = {
-        NSMakePoint(NSMinX(r), NSMinY(r)),
-        NSMakePoint(NSMaxX(r), NSMinY(r)),
-        NSMakePoint(NSMaxX(r), NSMaxY(r)),
-        NSMakePoint(NSMinX(r), NSMaxY(r))
-    };
-    [[NSColor whiteColor] setFill];
-    [[NSColor colorWithCalibratedRed:0.02 green:0.52 blue:0.92 alpha:1.0] setStroke];
-    for (int i = 0; i < 4; i++) {
-        NSRect hRect = NSMakeRect(corners[i].x - handleSize/2.0, corners[i].y - handleSize/2.0, handleSize, handleSize);
-        NSBezierPath *hPath = [NSBezierPath bezierPathWithOvalInRect:hRect];
-        [hPath fill];
-        hPath.lineWidth = 1.2;
-        [hPath stroke];
+        // 2 endpoint resize handles (8px)
+        CGFloat handleSize = 8.0;
+        NSPoint pts[2] = { shape.startPoint, shape.endPoint };
+        [[NSColor whiteColor] setFill];
+        [[NSColor colorWithCalibratedRed:0.02 green:0.52 blue:0.92 alpha:1.0] setStroke];
+        for (int i = 0; i < 2; i++) {
+            NSRect hRect = NSMakeRect(pts[i].x - handleSize/2.0, pts[i].y - handleSize/2.0, handleSize, handleSize);
+            NSBezierPath *hPath = [NSBezierPath bezierPathWithOvalInRect:hRect];
+            [hPath fill];
+            hPath.lineWidth = 1.5;
+            [hPath stroke];
+        }
+    } else {
+        NSRect r = [shape boundingRect];
+        r = NSInsetRect(r, -4, -4);
+
+        // Dashed cyan bounding box
+        NSBezierPath *border = [NSBezierPath bezierPathWithRoundedRect:r xRadius:4 yRadius:4];
+        CGFloat dash[2] = { 4.0, 3.0 };
+        [border setLineDash:dash count:2 phase:0.0];
+        border.lineWidth = 1.5;
+        [[NSColor colorWithCalibratedRed:0.22 green:0.74 blue:0.97 alpha:0.95] setStroke];
+        [border stroke];
+
+        // Corner handle dots (8px for comfortable grabbing)
+        CGFloat handleSize = 8.0;
+        NSPoint corners[4] = {
+            NSMakePoint(NSMinX(r), NSMinY(r)), // bottom-left
+            NSMakePoint(NSMaxX(r), NSMinY(r)), // bottom-right
+            NSMakePoint(NSMaxX(r), NSMaxY(r)), // top-right
+            NSMakePoint(NSMinX(r), NSMaxY(r))  // top-left
+        };
+        [[NSColor whiteColor] setFill];
+        [[NSColor colorWithCalibratedRed:0.02 green:0.52 blue:0.92 alpha:1.0] setStroke];
+        for (int i = 0; i < 4; i++) {
+            NSRect hRect = NSMakeRect(corners[i].x - handleSize/2.0, corners[i].y - handleSize/2.0, handleSize, handleSize);
+            NSBezierPath *hPath = [NSBezierPath bezierPathWithOvalInRect:hRect];
+            [hPath fill];
+            hPath.lineWidth = 1.5;
+            [hPath stroke];
+        }
     }
     [NSGraphicsContext restoreGraphicsState];
 }
@@ -412,7 +476,43 @@
     NSPoint location = [self convertPoint:event.locationInWindow fromView:nil];
     BOOL isCmd = (event.modifierFlags & NSEventModifierFlagCommand) != 0;
 
-    // 1. Select Tool or Cmd-drag mode: hit-test shapes to select & move
+    // 1. Check if clicking on a resize handle of the currently selected shape
+    if (self.selectedShape) {
+        ShapeResizeHandle handle = [self.selectedShape hitTestHandleAtPoint:location tolerance:12.0];
+        if (handle != ShapeResizeHandleNone) {
+            [self.history pushState:self.shapes];
+            self.activeResizeHandle = handle;
+            self.resizeOriginalRect = [self.selectedShape boundingRect];
+            self.resizeOriginalStrokeWidth = self.selectedShape.strokeWidth;
+            if (self.selectedShape.pointsArray) {
+                self.resizeOriginalPoints = [self.selectedShape.pointsArray copy];
+            }
+            if (self.selectedShape.type == ToolTypeArrow) {
+                self.resizeAnchorPoint = (handle == ShapeResizeHandleArrowStart) ? self.selectedShape.endPoint : self.selectedShape.startPoint;
+            } else {
+                NSRect r = [self.selectedShape boundingRect];
+                switch (handle) {
+                    case ShapeResizeHandleBottomLeft:
+                        self.resizeAnchorPoint = NSMakePoint(NSMaxX(r), NSMaxY(r));
+                        break;
+                    case ShapeResizeHandleBottomRight:
+                        self.resizeAnchorPoint = NSMakePoint(NSMinX(r), NSMaxY(r));
+                        break;
+                    case ShapeResizeHandleTopRight:
+                        self.resizeAnchorPoint = NSMakePoint(NSMinX(r), NSMinY(r));
+                        break;
+                    case ShapeResizeHandleTopLeft:
+                        self.resizeAnchorPoint = NSMakePoint(NSMaxX(r), NSMinY(r));
+                        break;
+                    default:
+                        break;
+                }
+            }
+            return;
+        }
+    }
+
+    // 2. Select Tool or Cmd-drag mode: hit-test shapes to select & move
     if (self.currentTool == ToolTypeSelect || isCmd) {
         AnnotationShape *hit = [self findShapeAtPoint:location];
         if (hit) {
@@ -420,18 +520,20 @@
             self.isDraggingSelectedShape = YES;
             self.lastDragLocation = location;
             [self.history pushState:self.shapes];
+            [self.window invalidateCursorRectsForView:self];
             [self setNeedsDisplay:YES];
             return;
         } else {
             if (self.currentTool == ToolTypeSelect) {
                 self.selectedShape = nil;
+                [self.window invalidateCursorRectsForView:self];
                 [self setNeedsDisplay:YES];
                 return;
             }
         }
     }
 
-    // 2. If clicking on the currently selected shape, allow moving it directly
+    // 3. If clicking on the currently selected shape, allow moving it directly
     if (self.selectedShape && [self.selectedShape hitTestPoint:location tolerance:8.0]) {
         self.isDraggingSelectedShape = YES;
         self.lastDragLocation = location;
@@ -439,8 +541,9 @@
         return;
     }
 
-    // 3. Clear previous selection when starting to draw something else
+    // 4. Clear previous selection when starting to draw something else
     self.selectedShape = nil;
+    [self.window invalidateCursorRectsForView:self];
 
     if (self.currentTool == ToolTypeSelect) {
         [self setNeedsDisplay:YES];
@@ -480,11 +583,57 @@
 - (void)mouseDragged:(NSEvent *)event {
     NSPoint location = [self convertPoint:event.locationInWindow fromView:nil];
 
+    // Handling shape resizing
+    if (self.activeResizeHandle != ShapeResizeHandleNone && self.selectedShape) {
+        if (self.selectedShape.type == ToolTypeArrow) {
+            if (self.activeResizeHandle == ShapeResizeHandleArrowStart) {
+                self.selectedShape.startPoint = location;
+            } else {
+                self.selectedShape.endPoint = location;
+            }
+        } else if (self.selectedShape.type == ToolTypeRect ||
+                   self.selectedShape.type == ToolTypeCircle ||
+                   self.selectedShape.type == ToolTypeBlur) {
+            self.selectedShape.startPoint = self.resizeAnchorPoint;
+            self.selectedShape.endPoint = location;
+        } else if (self.selectedShape.type == ToolTypeText) {
+            CGFloat newH = fabs(location.y - self.resizeAnchorPoint.y);
+            CGFloat newStroke = MAX(1.0, (newH - 4.0) / 4.5);
+            self.selectedShape.strokeWidth = newStroke;
+            if (location.x < self.resizeAnchorPoint.x) {
+                self.selectedShape.startPoint = NSMakePoint(location.x, MIN(location.y, self.resizeAnchorPoint.y));
+            }
+        } else if (self.selectedShape.type == ToolTypeStepBadge) {
+            CGFloat dist = hypot(location.x - self.selectedShape.startPoint.x, location.y - self.selectedShape.startPoint.y);
+            self.selectedShape.strokeWidth = MAX(2.0, MIN(12.0, dist / 4.0));
+        } else if (self.selectedShape.type == ToolTypeHighlight && self.resizeOriginalPoints.count > 0) {
+            CGFloat origW = MAX(10.0, self.resizeOriginalRect.size.width);
+            CGFloat origH = MAX(10.0, self.resizeOriginalRect.size.height);
+            CGFloat newW = MAX(10.0, fabs(location.x - self.resizeAnchorPoint.x));
+            CGFloat newH = MAX(10.0, fabs(location.y - self.resizeAnchorPoint.y));
+            CGFloat minX = MIN(location.x, self.resizeAnchorPoint.x);
+            CGFloat minY = MIN(location.y, self.resizeAnchorPoint.y);
+            NSMutableArray *scaled = [NSMutableArray arrayWithCapacity:self.resizeOriginalPoints.count];
+            for (NSValue *val in self.resizeOriginalPoints) {
+                NSPoint pt = [val pointValue];
+                CGFloat nx = (pt.x - self.resizeOriginalRect.origin.x) / origW;
+                CGFloat ny = (pt.y - self.resizeOriginalRect.origin.y) / origH;
+                NSPoint newPt = NSMakePoint(minX + nx * newW, minY + ny * newH);
+                [scaled addObject:[NSValue valueWithPoint:newPt]];
+            }
+            self.selectedShape.pointsArray = scaled;
+        }
+        [self.window invalidateCursorRectsForView:self];
+        [self setNeedsDisplay:YES];
+        return;
+    }
+
     if (self.isDraggingSelectedShape && self.selectedShape) {
         CGFloat dx = location.x - self.lastDragLocation.x;
         CGFloat dy = location.y - self.lastDragLocation.y;
         [self.selectedShape translateByDx:dx dy:dy];
         self.lastDragLocation = location;
+        [self.window invalidateCursorRectsForView:self];
         [self setNeedsDisplay:YES];
         return;
     }
@@ -499,8 +648,17 @@
 }
 
 - (void)mouseUp:(NSEvent *)event {
+    if (self.activeResizeHandle != ShapeResizeHandleNone) {
+        self.activeResizeHandle = ShapeResizeHandleNone;
+        [self.window invalidateCursorRectsForView:self];
+        [self setNeedsDisplay:YES];
+        [self.delegate canvasDidChangeShapes];
+        return;
+    }
+
     if (self.isDraggingSelectedShape) {
         self.isDraggingSelectedShape = NO;
+        [self.window invalidateCursorRectsForView:self];
         [self setNeedsDisplay:YES];
         [self.delegate canvasDidChangeShapes];
         return;

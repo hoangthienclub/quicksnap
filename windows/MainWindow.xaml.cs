@@ -21,6 +21,7 @@ namespace QuickSnag
         private UIElement? _selectedElement;
         private Point _lastDragPoint;
         private bool _isDraggingElement;
+        private bool _isResizingElement;
 
         public MainWindow()
         {
@@ -57,6 +58,35 @@ namespace QuickSnag
         private void DrawingCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
             _startPoint = e.GetPosition(DrawingCanvas);
+
+            if (_selectedElement != null)
+            {
+                if (_selectedElement is Line line)
+                {
+                    if (Math.Sqrt(Math.Pow(_startPoint.X - line.X2, 2) + Math.Pow(_startPoint.Y - line.Y2, 2)) <= 18)
+                    {
+                        _isResizingElement = true;
+                        _lastDragPoint = _startPoint;
+                        return;
+                    }
+                }
+                else if (_selectedElement is FrameworkElement fe)
+                {
+                    double left = Canvas.GetLeft(fe);
+                    double top = Canvas.GetTop(fe);
+                    if (double.IsNaN(left)) left = 0;
+                    if (double.IsNaN(top)) top = 0;
+                    double right = left + (double.IsNaN(fe.Width) ? fe.ActualWidth : fe.Width);
+                    double bottom = top + (double.IsNaN(fe.Height) ? fe.ActualHeight : fe.Height);
+
+                    if (Math.Abs(_startPoint.X - right) <= 18 && Math.Abs(_startPoint.Y - bottom) <= 18)
+                    {
+                        _isResizingElement = true;
+                        _lastDragPoint = _startPoint;
+                        return;
+                    }
+                }
+            }
 
             if (_currentTool == "Select" || Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
             {
@@ -143,6 +173,26 @@ namespace QuickSnag
             if (e.LeftButton != MouseButtonState.Pressed) return;
             var cur = e.GetPosition(DrawingCanvas);
 
+            if (_isResizingElement && _selectedElement != null)
+            {
+                if (_selectedElement is Line line)
+                {
+                    line.X2 = cur.X;
+                    line.Y2 = cur.Y;
+                }
+                else if (_selectedElement is FrameworkElement fe)
+                {
+                    double left = Canvas.GetLeft(fe);
+                    double top = Canvas.GetTop(fe);
+                    if (double.IsNaN(left)) left = 0;
+                    if (double.IsNaN(top)) top = 0;
+                    fe.Width = Math.Max(10, cur.X - left);
+                    fe.Height = Math.Max(10, cur.Y - top);
+                }
+                _lastDragPoint = cur;
+                return;
+            }
+
             if (_isDraggingElement && _selectedElement != null)
             {
                 double dx = cur.X - _lastDragPoint.X;
@@ -197,6 +247,7 @@ namespace QuickSnag
         {
             _activeShape = null;
             _isDraggingElement = false;
+            _isResizingElement = false;
         }
 
         private void AddStepBadge(Point p, int num)

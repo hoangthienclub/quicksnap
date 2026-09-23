@@ -17,11 +17,39 @@
 @implementation ToolbarView
 
 + (CGFloat)recommendedWidth {
-    return 834.0;
+    return 888.0;
 }
 
 + (CGFloat)recommendedHeight {
     return 42.0;
+}
+
++ (NSImage *)selectCursorIcon {
+    NSImage *img = nil;
+    if (@available(macOS 11.0, *)) {
+        img = [NSImage imageWithSystemSymbolName:@"cursorarrow" accessibilityDescription:@"Select & Resize"];
+    }
+    if (!img) {
+        img = [NSImage imageWithSize:NSMakeSize(16, 16) flipped:NO drawingHandler:^BOOL(NSRect dstRect) {
+            NSBezierPath *p = [NSBezierPath bezierPath];
+            [p moveToPoint:NSMakePoint(2.5, 14.5)];
+            [p lineToPoint:NSMakePoint(2.5, 2.5)];
+            [p lineToPoint:NSMakePoint(6.5, 6.5)];
+            [p lineToPoint:NSMakePoint(9.5, 1.5)];
+            [p lineToPoint:NSMakePoint(11.5, 2.7)];
+            [p lineToPoint:NSMakePoint(8.5, 7.8)];
+            [p lineToPoint:NSMakePoint(13.5, 7.8)];
+            [p closePath];
+            [[NSColor whiteColor] setFill];
+            [p fill];
+            [[NSColor colorWithCalibratedWhite:0.1 alpha:1.0] setStroke];
+            p.lineWidth = 1.0;
+            [p stroke];
+            return YES;
+        }];
+    }
+    img.template = YES;
+    return img;
 }
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
@@ -74,7 +102,7 @@
 
     // Tool Buttons (compact icons + tooltips)
     NSArray *tools = @[
-        @{@"icon": @"↖", @"tip": @"Select & Move (V)", @"tool": @(ToolTypeSelect), @"w": @30},
+        @{@"icon": @"", @"tip": @"Select, Move & Resize (V)", @"tool": @(ToolTypeSelect), @"w": @30},
         @{@"icon": @"↗", @"tip": @"Arrow (A)", @"tool": @(ToolTypeArrow), @"w": @30},
         @{@"icon": @"▭", @"tip": @"Rectangle (R)", @"tool": @(ToolTypeRect), @"w": @30},
         @{@"icon": @"◯", @"tip": @"Circle / Oval (C)", @"tool": @(ToolTypeCircle), @"w": @30},
@@ -87,12 +115,20 @@
     for (NSDictionary *dict in tools) {
         ToolType t = [dict[@"tool"] integerValue];
         CGFloat w = [dict[@"w"] doubleValue];
-        NSButton *btn = [NSButton buttonWithTitle:dict[@"icon"] target:self action:@selector(onToolClick:)];
+        NSButton *btn = nil;
+        if (t == ToolTypeSelect) {
+            btn = [NSButton buttonWithTitle:@"" target:self action:@selector(onToolClick:)];
+            btn.image = [ToolbarView selectCursorIcon];
+            btn.imagePosition = NSImageOnly;
+            btn.imageScaling = NSImageScaleProportionallyDown;
+        } else {
+            btn = [NSButton buttonWithTitle:dict[@"icon"] target:self action:@selector(onToolClick:)];
+            btn.font = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
+        }
         btn.frame = NSMakeRect(x, y, w, btnH);
         btn.bezelStyle = NSBezelStyleRecessed;
         btn.tag = t;
         btn.toolTip = dict[@"tip"];
-        btn.font = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
         btn.wantsLayer = YES;
         btn.layer.cornerRadius = 5;
         [self addSubview:btn];

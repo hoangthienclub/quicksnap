@@ -152,6 +152,33 @@ static CGFloat DistanceFromPointToLineSegment(NSPoint p, NSPoint a, NSPoint b) {
     }
 }
 
+- (ShapeResizeHandle)hitTestHandleAtPoint:(NSPoint)point tolerance:(CGFloat)tolerance {
+    if (self.type == ToolTypeArrow) {
+        if (hypot(point.x - self.startPoint.x, point.y - self.startPoint.y) <= tolerance) {
+            return ShapeResizeHandleArrowStart;
+        }
+        if (hypot(point.x - self.endPoint.x, point.y - self.endPoint.y) <= tolerance) {
+            return ShapeResizeHandleArrowEnd;
+        }
+        return ShapeResizeHandleNone;
+    }
+
+    NSRect r = NSInsetRect([self boundingRect], -4, -4);
+    if (hypot(point.x - NSMinX(r), point.y - NSMinY(r)) <= tolerance) {
+        return ShapeResizeHandleBottomLeft;
+    }
+    if (hypot(point.x - NSMaxX(r), point.y - NSMinY(r)) <= tolerance) {
+        return ShapeResizeHandleBottomRight;
+    }
+    if (hypot(point.x - NSMaxX(r), point.y - NSMaxY(r)) <= tolerance) {
+        return ShapeResizeHandleTopRight;
+    }
+    if (hypot(point.x - NSMinX(r), point.y - NSMaxY(r)) <= tolerance) {
+        return ShapeResizeHandleTopLeft;
+    }
+    return ShapeResizeHandleNone;
+}
+
 - (void)translateByDx:(CGFloat)dx dy:(CGFloat)dy {
     self.startPoint = NSMakePoint(self.startPoint.x + dx, self.startPoint.y + dy);
     self.endPoint = NSMakePoint(self.endPoint.x + dx, self.endPoint.y + dy);

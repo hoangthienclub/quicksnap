@@ -11,6 +11,16 @@ typedef NS_ENUM(NSInteger, ToolType) {
     ToolTypeHighlight
 };
 
+typedef NS_ENUM(NSInteger, ShapeResizeHandle) {
+    ShapeResizeHandleNone = 0,
+    ShapeResizeHandleBottomLeft,
+    ShapeResizeHandleBottomRight,
+    ShapeResizeHandleTopRight,
+    ShapeResizeHandleTopLeft,
+    ShapeResizeHandleArrowStart,
+    ShapeResizeHandleArrowEnd
+};
+
 NS_ASSUME_NONNULL_BEGIN
 
 @interface AnnotationShape : NSObject <NSCopying>
@@ -32,6 +42,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSRect)boundingRect;
 - (BOOL)hitTestPoint:(NSPoint)point tolerance:(CGFloat)tolerance;
+- (ShapeResizeHandle)hitTestHandleAtPoint:(NSPoint)point tolerance:(CGFloat)tolerance;
 - (void)translateByDx:(CGFloat)dx dy:(CGFloat)dy;
 
 @end

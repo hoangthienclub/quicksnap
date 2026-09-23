@@ -33,7 +33,7 @@
                 <Rectangle Width="1" Height="20" Fill="#40FFFFFF" Margin="0,0,10,0"/>
 
                 <!-- Tools -->
-                <Button Content="↖ Select" Click="Tool_Click" Tag="Select" Margin="2" Padding="8,4" Background="#334155" Foreground="White"/>
+                <Button Content="🎯 Select" Click="Tool_Click" Tag="Select" Margin="2" Padding="8,4" Background="#334155" Foreground="White" ToolTip="Select, Move &amp; Resize (V)"/>
                 <Button Content="↗ Arrow" Click="Tool_Click" Tag="Arrow" Margin="2" Padding="8,4" Background="#334155" Foreground="White"/>
                 <Button Content="▭ Rect" Click="Tool_Click" Tag="Rect" Margin="2" Padding="8,4" Background="#334155" Foreground="White"/>
                 <Button Content="◯ Oval" Click="Tool_Click" Tag="Circle" Margin="2" Padding="8,4" Background="#334155" Foreground="White"/>
