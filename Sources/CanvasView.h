@@ -16,12 +16,18 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) CGFloat currentStrokeWidth;
 @property (nonatomic, assign) NSInteger stepCounter;
 
+@property (nonatomic, strong, nullable) AnnotationShape *selectedShape;
+@property (nonatomic, assign) BOOL isRenderingForExport;
+
 - (void)loadImage:(NSImage *)image;
 - (void)undo;
 - (void)redo;
 - (BOOL)canUndo;
 - (BOOL)canRedo;
 - (void)resetStepCounter;
+- (void)deleteSelectedShape;
+- (void)nudgeSelectedShapeByDx:(CGFloat)dx dy:(CGFloat)dy;
+- (void)clearSelection;
 - (NSImage * _Nullable)renderComposedImage;
 
 @end

@@ -10,6 +10,8 @@
 @property (nonatomic, strong) NSMutableArray<NSValue *> *activeHighlightPoints;
 @property (nonatomic, strong) NSTextField *activeTextField;
 @property (nonatomic, assign) NSPoint textPlacementPoint;
+@property (nonatomic, assign) BOOL isDraggingSelectedShape;
+@property (nonatomic, assign) NSPoint lastDragLocation;
 
 @end
 
@@ -73,6 +75,72 @@
 
 - (void)resetStepCounter {
     self.stepCounter = 1;
+}
+
+- (void)deleteSelectedShape {
+    if (!self.selectedShape) return;
+    [self.history pushState:self.shapes];
+    [self.shapes removeObject:self.selectedShape];
+    self.selectedShape = nil;
+    [self setNeedsDisplay:YES];
+    [self.delegate canvasDidChangeShapes];
+}
+
+- (void)nudgeSelectedShapeByDx:(CGFloat)dx dy:(CGFloat)dy {
+    if (!self.selectedShape) return;
+    [self.history pushState:self.shapes];
+    [self.selectedShape translateByDx:dx dy:dy];
+    [self setNeedsDisplay:YES];
+    [self.delegate canvasDidChangeShapes];
+}
+
+- (void)clearSelection {
+    if (self.selectedShape) {
+        self.selectedShape = nil;
+        [self setNeedsDisplay:YES];
+    }
+}
+
+- (AnnotationShape * _Nullable)findShapeAtPoint:(NSPoint)point {
+    for (AnnotationShape *shape in [self.shapes reverseObjectEnumerator]) {
+        if ([shape hitTestPoint:point tolerance:8.0]) {
+            return shape;
+        }
+    }
+    return nil;
+}
+
+- (void)drawSelectionOverlayForShape:(AnnotationShape *)shape {
+    [NSGraphicsContext saveGraphicsState];
+    NSRect r = [shape boundingRect];
+    r = NSInsetRect(r, -4, -4);
+
+    // Dashed cyan bounding box
+    NSBezierPath *border = [NSBezierPath bezierPathWithRoundedRect:r xRadius:4 yRadius:4];
+    CGFloat dash[2] = { 4.0, 3.0 };
+    [border setLineDash:dash count:2 phase:0.0];
+    border.lineWidth = 1.5;
+    [[NSColor colorWithCalibratedRed:0.22 green:0.74 blue:0.97 alpha:0.95] setStroke];
+    [border stroke];
+
+    // Corner handle dots
+    CGFloat handleSize = 6.0;
+    NSPoint corners[4] = {
+        NSMakePoint(NSMinX(r), NSMinY(r)),
+        NSMakePoint(NSMaxX(r), NSMinY(r)),
+        NSMakePoint(NSMaxX(r), NSMaxY(r)),
+        NSMakePoint(NSMinX(r), NSMaxY(r))
+    };
+    [[NSColor whiteColor] setFill];
+    [[NSColor colorWithCalibratedRed:0.02 green:0.52 blue:0.92 alpha:1.0] setStroke];
+    for (int i = 0; i < 4; i++) {
+        NSRect hRect = NSMakeRect(corners[i].x - handleSize/2.0, corners[i].y - handleSize/2.0, handleSize, handleSize);
+        NSBezierPath *hPath = [NSBezierPath bezierPathWithOvalInRect:hRect];
+        [hPath fill];
+        hPath.lineWidth = 1.2;
+        [hPath stroke];
+    }
+    [NSGraphicsContext restoreGraphicsState];
 }
 
 #pragma mark - Geometry Helpers
@@ -143,7 +211,11 @@
         if (self.currentTool == ToolTypeHighlight) {
             preview.pointsArray = self.activeHighlightPoints;
         }
-        [self drawShape:preview inRect:imgRect];
+    }
+    
+    // Draw selection highlight overlay if not exporting
+    if (self.selectedShape && !self.isRenderingForExport) {
+        [self drawSelectionOverlayForShape:self.selectedShape];
     }
 }
 
@@ -185,6 +257,8 @@
     shadow.shadowOffset = NSMakeSize(1, -1);
 
     switch (shape.type) {
+        case ToolTypeSelect:
+            break;
         case ToolTypeArrow: {
             [NSGraphicsContext saveGraphicsState];
             [shadow set];
@@ -336,6 +410,42 @@
 - (void)mouseDown:(NSEvent *)event {
     [self removeActiveTextField];
     NSPoint location = [self convertPoint:event.locationInWindow fromView:nil];
+    BOOL isCmd = (event.modifierFlags & NSEventModifierFlagCommand) != 0;
+
+    // 1. Select Tool or Cmd-drag mode: hit-test shapes to select & move
+    if (self.currentTool == ToolTypeSelect || isCmd) {
+        AnnotationShape *hit = [self findShapeAtPoint:location];
+        if (hit) {
+            self.selectedShape = hit;
+            self.isDraggingSelectedShape = YES;
+            self.lastDragLocation = location;
+            [self.history pushState:self.shapes];
+            [self setNeedsDisplay:YES];
+            return;
+        } else {
+            if (self.currentTool == ToolTypeSelect) {
+                self.selectedShape = nil;
+                [self setNeedsDisplay:YES];
+                return;
+            }
+        }
+    }
+
+    // 2. If clicking on the currently selected shape, allow moving it directly
+    if (self.selectedShape && [self.selectedShape hitTestPoint:location tolerance:8.0]) {
+        self.isDraggingSelectedShape = YES;
+        self.lastDragLocation = location;
+        [self.history pushState:self.shapes];
+        return;
+    }
+
+    // 3. Clear previous selection when starting to draw something else
+    self.selectedShape = nil;
+
+    if (self.currentTool == ToolTypeSelect) {
+        [self setNeedsDisplay:YES];
+        return;
+    }
 
     if (self.currentTool == ToolTypeStepBadge) {
         [self.history pushState:self.shapes];
@@ -346,6 +456,7 @@
                                                 strokeWidth:self.currentStrokeWidth];
         s.stepNumber = self.stepCounter++;
         [self.shapes addObject:s];
+        self.selectedShape = s;
         [self setNeedsDisplay:YES];
         [self.delegate canvasDidChangeShapes];
         return;
@@ -367,8 +478,18 @@
 }
 
 - (void)mouseDragged:(NSEvent *)event {
-    if (!self.isDrawing) return;
     NSPoint location = [self convertPoint:event.locationInWindow fromView:nil];
+
+    if (self.isDraggingSelectedShape && self.selectedShape) {
+        CGFloat dx = location.x - self.lastDragLocation.x;
+        CGFloat dy = location.y - self.lastDragLocation.y;
+        [self.selectedShape translateByDx:dx dy:dy];
+        self.lastDragLocation = location;
+        [self setNeedsDisplay:YES];
+        return;
+    }
+
+    if (!self.isDrawing) return;
     self.currentPoint = location;
 
     if (self.currentTool == ToolTypeHighlight) {
@@ -378,9 +499,22 @@
 }
 
 - (void)mouseUp:(NSEvent *)event {
+    if (self.isDraggingSelectedShape) {
+        self.isDraggingSelectedShape = NO;
+        [self setNeedsDisplay:YES];
+        [self.delegate canvasDidChangeShapes];
+        return;
+    }
+
     if (!self.isDrawing) return;
     self.isDrawing = NO;
     NSPoint location = [self convertPoint:event.locationInWindow fromView:nil];
+
+    CGFloat dist = hypot(location.x - self.startPoint.x, location.y - self.startPoint.y);
+    if (self.currentTool != ToolTypeHighlight && dist < 3.0) {
+        [self setNeedsDisplay:YES];
+        return;
+    }
 
     [self.history pushState:self.shapes];
     AnnotationShape *s = [AnnotationShape shapeWithType:self.currentTool
@@ -392,6 +526,7 @@
         s.pointsArray = [self.activeHighlightPoints mutableCopy];
     }
     [self.shapes addObject:s];
+    self.selectedShape = s;
     [self.activeHighlightPoints removeAllObjects];
     [self setNeedsDisplay:YES];
     [self.delegate canvasDidChangeShapes];

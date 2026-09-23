@@ -18,6 +18,9 @@ namespace QuickSnag
         private Point _startPoint;
         private Shape? _activeShape;
         private BitmapSource? _baseImage;
+        private UIElement? _selectedElement;
+        private Point _lastDragPoint;
+        private bool _isDraggingElement;
 
         public MainWindow()
         {
@@ -54,6 +57,28 @@ namespace QuickSnag
         private void DrawingCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
             _startPoint = e.GetPosition(DrawingCanvas);
+
+            if (_currentTool == "Select" || Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+            {
+                var hit = DrawingCanvas.InputHitTest(_startPoint) as UIElement;
+                if (hit != null && hit != DrawingCanvas && hit != BaseImageDisplay)
+                {
+                    var elem = hit;
+                    while (elem != null && VisualTreeHelper.GetParent(elem) != DrawingCanvas)
+                    {
+                        elem = VisualTreeHelper.GetParent(elem) as UIElement;
+                    }
+                    if (elem != null)
+                    {
+                        _selectedElement = elem;
+                        _isDraggingElement = true;
+                        _lastDragPoint = _startPoint;
+                        return;
+                    }
+                }
+                _selectedElement = null;
+                return;
+            }
 
             if (_currentTool == "Step")
             {
@@ -115,8 +140,33 @@ namespace QuickSnag
 
         private void DrawingCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            if (e.LeftButton != MouseButtonState.Pressed || _activeShape == null) return;
+            if (e.LeftButton != MouseButtonState.Pressed) return;
             var cur = e.GetPosition(DrawingCanvas);
+
+            if (_isDraggingElement && _selectedElement != null)
+            {
+                double dx = cur.X - _lastDragPoint.X;
+                double dy = cur.Y - _lastDragPoint.Y;
+
+                if (_selectedElement is Line line)
+                {
+                    line.X1 += dx; line.X2 += dx;
+                    line.Y1 += dy; line.Y2 += dy;
+                }
+                else
+                {
+                    double left = Canvas.GetLeft(_selectedElement);
+                    double top = Canvas.GetTop(_selectedElement);
+                    if (double.IsNaN(left)) left = 0;
+                    if (double.IsNaN(top)) top = 0;
+                    Canvas.SetLeft(_selectedElement, left + dx);
+                    Canvas.SetTop(_selectedElement, top + dy);
+                }
+                _lastDragPoint = cur;
+                return;
+            }
+
+            if (_activeShape == null) return;
 
             if (_activeShape is Line l)
             {
@@ -146,6 +196,7 @@ namespace QuickSnag
         private void DrawingCanvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
             _activeShape = null;
+            _isDraggingElement = false;
         }
 
         private void AddStepBadge(Point p, int num)
@@ -266,6 +317,18 @@ namespace QuickSnag
             else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.Z)
             {
                 Undo_Click(this, new RoutedEventArgs());
+            }
+            else if (e.Key == Key.Delete || e.Key == Key.Back)
+            {
+                if (_selectedElement != null)
+                {
+                    DrawingCanvas.Children.Remove(_selectedElement);
+                    _selectedElement = null;
+                }
+            }
+            else if (e.Key == Key.V)
+            {
+                _currentTool = "Select";
             }
         }
     }

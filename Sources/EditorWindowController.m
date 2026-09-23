@@ -114,10 +114,34 @@
             return nil;
         }
 
-        // Quick Tool Keys (A, R, C, S, T, B, H)
+        // Delete or Backspace -> Delete Selected Shape
+        if (event.keyCode == 51 || event.keyCode == 117) {
+            [weakSelf.canvasView deleteSelectedShape];
+            return nil;
+        }
+
+        // Arrow Keys -> Nudge Selected Shape (Shift for 10px)
+        if (event.keyCode >= 123 && event.keyCode <= 126) {
+            CGFloat step = isShift ? 10.0 : 1.0;
+            if (event.keyCode == 123) {
+                [weakSelf.canvasView nudgeSelectedShapeByDx:-step dy:0];
+            } else if (event.keyCode == 124) {
+                [weakSelf.canvasView nudgeSelectedShapeByDx:step dy:0];
+            } else if (event.keyCode == 125) {
+                [weakSelf.canvasView nudgeSelectedShapeByDx:0 dy:-step];
+            } else if (event.keyCode == 126) {
+                [weakSelf.canvasView nudgeSelectedShapeByDx:0 dy:step];
+            }
+            return nil;
+        }
+
+        // Quick Tool Keys (V, A, R, C, S, T, B, H)
         if (flags == 0) {
             NSString *ch = [event.charactersIgnoringModifiers lowercaseString];
-            if ([ch isEqualToString:@"a"]) {
+            if ([ch isEqualToString:@"v"]) {
+                [weakSelf toolbarDidSelectTool:ToolTypeSelect];
+                return nil;
+            } else if ([ch isEqualToString:@"a"]) {
                 [weakSelf toolbarDidSelectTool:ToolTypeArrow];
                 return nil;
             } else if ([ch isEqualToString:@"r"]) {

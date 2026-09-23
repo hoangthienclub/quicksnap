@@ -17,7 +17,7 @@
 @implementation ToolbarView
 
 + (CGFloat)recommendedWidth {
-    return 800.0;
+    return 834.0;
 }
 
 + (CGFloat)recommendedHeight {
@@ -74,6 +74,7 @@
 
     // Tool Buttons (compact icons + tooltips)
     NSArray *tools = @[
+        @{@"icon": @"↖", @"tip": @"Select & Move (V)", @"tool": @(ToolTypeSelect), @"w": @30},
         @{@"icon": @"↗", @"tip": @"Arrow (A)", @"tool": @(ToolTypeArrow), @"w": @30},
         @{@"icon": @"▭", @"tip": @"Rectangle (R)", @"tool": @(ToolTypeRect), @"w": @30},
         @{@"icon": @"◯", @"tip": @"Circle / Oval (C)", @"tool": @(ToolTypeCircle), @"w": @30},

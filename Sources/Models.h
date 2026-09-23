@@ -1,7 +1,8 @@
 #import <Cocoa/Cocoa.h>
 
 typedef NS_ENUM(NSInteger, ToolType) {
-    ToolTypeArrow = 0,
+    ToolTypeSelect = 0,
+    ToolTypeArrow,
     ToolTypeRect,
     ToolTypeCircle,
     ToolTypeStepBadge,
@@ -28,6 +29,10 @@ NS_ASSUME_NONNULL_BEGIN
                           end:(NSPoint)end
                         color:(NSColor *)color
                   strokeWidth:(CGFloat)width;
+
+- (NSRect)boundingRect;
+- (BOOL)hitTestPoint:(NSPoint)point tolerance:(CGFloat)tolerance;
+- (void)translateByDx:(CGFloat)dx dy:(CGFloat)dy;
 
 @end
 
