@@ -43,13 +43,13 @@ jobs:
 
       - name: Publish Windows Standalone Executable (~65MB)
         run: |
-          dotnet publish windows/QuickSnag.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o win-publish-standalone
+          dotnet publish windows/QuickSnag.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o win-publish-standalone
           Compress-Archive -Path win-publish-standalone/* -DestinationPath QuickSnag-Windows-Standalone.zip
           Copy-Item QuickSnag-Windows-Standalone.zip -Destination QuickSnag-Windows-x64.zip
 
       - name: Publish Windows Lightweight Executable (~300KB)
         run: |
-          dotnet publish windows/QuickSnag.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o win-publish-lightweight
+          dotnet publish windows/QuickSnag.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -o win-publish-lightweight
           Compress-Archive -Path win-publish-lightweight/* -DestinationPath QuickSnag-Windows-Lightweight.zip
 
       - name: Upload Windows Standalone Artifact
