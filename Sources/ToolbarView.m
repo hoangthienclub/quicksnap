@@ -193,18 +193,28 @@
     [self addSubview:self.saveButton];
     x += 32;
 
-    // Highlighted Copy Button
-    self.clipboardButton = [NSButton buttonWithTitle:@"📋 Copy ↵" target:self action:@selector(onCopyClick:)];
-    self.clipboardButton.frame = NSMakeRect(x, y, 84, btnH);
-    self.clipboardButton.bezelStyle = NSBezelStyleRounded;
+    // Clean Modern Copy Button (flat, high contrast, zero glare)
+    self.clipboardButton = [[NSButton alloc] initWithFrame:NSMakeRect(x, y, 92, btnH)];
+    self.clipboardButton.target = self;
+    self.clipboardButton.action = @selector(onCopyClick:);
+    self.clipboardButton.bordered = NO;
     self.clipboardButton.toolTip = @"Copy to Clipboard & Close (Enter / Cmd+C)";
     self.clipboardButton.wantsLayer = YES;
-    self.clipboardButton.layer.backgroundColor = [NSColor colorWithCalibratedRed:0.06 green:0.72 blue:0.51 alpha:1.0].CGColor;
+    self.clipboardButton.layer.backgroundColor = [NSColor colorWithCalibratedRed:0.12 green:0.42 blue:0.86 alpha:1.0].CGColor;
     self.clipboardButton.layer.cornerRadius = 6;
-    self.clipboardButton.font = [NSFont boldSystemFontOfSize:11];
-    self.clipboardButton.contentTintColor = [NSColor whiteColor];
+    self.clipboardButton.layer.borderWidth = 1.0;
+    self.clipboardButton.layer.borderColor = [NSColor colorWithCalibratedWhite:1.0 alpha:0.18].CGColor;
+
+    NSMutableParagraphStyle *copyParaStyle = [[NSMutableParagraphStyle alloc] init];
+    copyParaStyle.alignment = NSTextAlignmentCenter;
+    NSAttributedString *copyAttrStr = [[NSAttributedString alloc] initWithString:@"📋 Copy ↵" attributes:@{
+        NSForegroundColorAttributeName: [NSColor whiteColor],
+        NSFontAttributeName: [NSFont boldSystemFontOfSize:11.5],
+        NSParagraphStyleAttributeName: copyParaStyle
+    }];
+    self.clipboardButton.attributedTitle = copyAttrStr;
     [self addSubview:self.clipboardButton];
-    x += 88;
+    x += 96;
 
     // Close Button
     self.closeButton = [NSButton buttonWithTitle:@"✕" target:self action:@selector(onCloseClick:)];
